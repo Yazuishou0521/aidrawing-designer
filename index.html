@@ -295,24 +295,51 @@
 </head>
 <body>
 
-<!-- ====== 登录页 ====== -->
+<!-- ====== 登录/注册页 ====== -->
 <div id="login-screen">
   <div class="login-box">
     <div class="login-logo">
       🎨 Art<span>Guide</span> AI
       <div class="sub">DESIGNER CONSOLE</div>
     </div>
-    <div class="login-field">
-      <label>账号</label>
-      <input type="text" id="login-user" placeholder="设计师账号" autocomplete="username" />
+
+    <!-- 登录表单 -->
+    <div id="login-form-area">
+      <div class="login-field">
+        <label>账号</label>
+        <input type="text" id="login-user" placeholder="设计师账号" autocomplete="username" />
+      </div>
+      <div class="login-field">
+        <label>密码</label>
+        <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password" />
+      </div>
+      <button class="login-btn" onclick="doLogin()">登录设计师控制台</button>
+      <div class="login-err" id="login-err">账号或密码错误，请重试</div>
+      <div class="login-hint" style="cursor:pointer" onclick="toggleRegister()">
+        没有账号？<span style="color:var(--blue);text-decoration:underline">立即注册</span>
+      </div>
     </div>
-    <div class="login-field">
-      <label>密码</label>
-      <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password" />
+
+    <!-- 注册表单 -->
+    <div id="register-form-area" style="display:none">
+      <div class="login-field">
+        <label>设置账号名</label>
+        <input type="text" id="reg-user" placeholder="你的账号名（支持中文）" autocomplete="username" />
+      </div>
+      <div class="login-field">
+        <label>设置密码（至少6位）</label>
+        <input type="password" id="reg-pass" placeholder="••••••••" autocomplete="new-password" />
+      </div>
+      <div class="login-field">
+        <label>确认密码</label>
+        <input type="password" id="reg-pass2" placeholder="再次输入密码" autocomplete="new-password" />
+      </div>
+      <button class="login-btn" onclick="doRegister()">注册账号</button>
+      <div class="login-err" id="reg-err"></div>
+      <div class="login-hint" style="cursor:pointer" onclick="toggleRegister()">
+        已有账号？<span style="color:var(--blue);text-decoration:underline">返回登录</span>
+      </div>
     </div>
-    <button class="login-btn" onclick="doLogin()">登录设计师控制台</button>
-    <div class="login-err" id="login-err">账号或密码错误，请重试</div>
-    <div class="login-hint">账号：鸭嘴兽 / 密码：已设置</div>
   </div>
 </div>
 
@@ -519,26 +546,89 @@
 <div id="toast2"></div>
 
 <script>
-  /* ===== 登录逻辑 ===== */
-  const ACCOUNTS = { '鸭嘴兽': 'wushifengxianjixuanzhuang', admin: 'artguide@2026' };
+  /* ===== SHA-256 工具函数 ===== */
+  async function sha256(message) {
+    const msgBuffer = new TextEncoder().encode(message);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  /* ===== 用户数据库（密码哈希存储） ===== */
+  function getUsers() {
+    return JSON.parse(localStorage.getItem('artguide_users') || 'null')
+      || [
+          // 默认管理员：鸭嘴兽（密码经 SHA-256 哈希存储，代码中无法还原明文）
+          { username: '鸭嘴兽', passwordHash: '5529988f4643415c934483e9fbb3d59d7f12ffd1d84d637b6fa902939e7ed2fc', role: 'designer', createdAt: '2026-04-24' }
+        ];
+  }
+  function saveUsers(users) {
+    localStorage.setItem('artguide_users', JSON.stringify(users));
+  }
+
   let currentUser = null;
   let currentFbId = null;
 
-  function doLogin() {
+  /* ===== 登录 ===== */
+  async function doLogin() {
     const u = document.getElementById('login-user').value.trim();
     const p = document.getElementById('login-pass').value;
-    if (ACCOUNTS[u] && ACCOUNTS[u] === p) {
-      currentUser = u;
+    if (!u || !p) { document.getElementById('login-err').textContent = '请填写账号和密码'; document.getElementById('login-err').style.display = 'block'; return; }
+    const hash = await sha256(p);
+    const users = getUsers();
+    const user = users.find(x => x.username === u && x.passwordHash === hash);
+    if (user) {
+      currentUser = user;
       document.getElementById('login-screen').style.display = 'none';
       document.getElementById('dashboard').style.display = 'block';
-      document.getElementById('login-name-display').textContent = u === 'admin' ? '管理员' : '设计师';
+      document.getElementById('login-name-display').textContent = user.username;
       initDashboard();
     } else {
+      document.getElementById('login-err').textContent = '账号或密码错误，请重试';
       document.getElementById('login-err').style.display = 'block';
     }
   }
+
+  /* ===== 注册/登录表单切换 ===== */
+  function toggleRegister() {
+    const loginArea = document.getElementById('login-form-area');
+    const regArea = document.getElementById('register-form-area');
+    const isLogin = loginArea.style.display !== 'none';
+    loginArea.style.display = isLogin ? 'none' : 'block';
+    regArea.style.display = isLogin ? 'block' : 'none';
+    document.getElementById('login-err').style.display = 'none';
+    document.getElementById('reg-err').style.display = 'none';
+  }
+
+  /* ===== 注册新账号 ===== */
+  async function doRegister() {
+    const u = document.getElementById('reg-user').value.trim();
+    const p = document.getElementById('reg-pass').value;
+    const p2 = document.getElementById('reg-pass2').value;
+    const errEl = document.getElementById('reg-err');
+    if (!u || !p || !p2) { errEl.textContent = '请填写所有字段'; errEl.style.display = 'block'; return; }
+    if (p.length < 6) { errEl.textContent = '密码长度至少6位'; errEl.style.display = 'block'; return; }
+    if (p !== p2) { errEl.textContent = '两次输入的密码不一致'; errEl.style.display = 'block'; return; }
+    const users = getUsers();
+    if (users.find(x => x.username === u)) { errEl.textContent = '该账号名已被注册'; errEl.style.display = 'block'; return; }
+    const hash = await sha256(p);
+    users.push({ username: u, passwordHash: hash, role: 'designer', createdAt: new Date().toLocaleDateString('zh-CN') });
+    saveUsers(users);
+    showToast2('✅ 注册成功！请登录');
+    toggleRegister();
+    document.getElementById('login-user').value = u;
+    document.getElementById('login-pass').value = '';
+    document.getElementById('reg-user').value = '';
+    document.getElementById('reg-pass').value = '';
+    document.getElementById('reg-pass2').value = '';
+  }
+
   document.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && document.getElementById('login-screen').style.display !== 'none') doLogin();
+    if (e.key === 'Enter' && document.getElementById('login-screen').style.display !== 'none') {
+      const regArea = document.getElementById('register-form-area');
+      if (regArea.style.display !== 'none') doRegister();
+      else doLogin();
+    }
   });
   function doLogout() {
     currentUser = null;
