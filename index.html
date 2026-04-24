@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ArtGuide AI — 设计师控制台</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface2: #1f2937;
+      --border: rgba(255,255,255,.08);
+      --accent: #e94560;
+      --gold: #f5c842;
+      --green: #2ecc71;
+      --blue: #3b82f6;
+      --text: #e6edf3;
+      --text-muted: #7d8590;
+      --white: #ffffff;
+    }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* ===== 登录页 ===== */
+    #login-screen {
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      background: radial-gradient(ellipse at 50% 40%, rgba(30,50,80,.8) 0%, var(--bg) 70%);
+    }
+    .login-box {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 24px; padding: 52px 48px; width: 400px; max-width: 94vw;
+      box-shadow: 0 30px 80px rgba(0,0,0,.5);
+    }
+    .login-logo {
+      text-align: center; font-size: 1.6rem; font-weight: 900; margin-bottom: 32px;
+      letter-spacing: 1px;
+    }
+    .login-logo span { color: var(--accent); }
+    .login-logo .sub { font-size: .8rem; color: var(--text-muted); font-weight: 400; margin-top: 6px; letter-spacing: 1px; }
+    .login-field { margin-bottom: 20px; }
+    .login-field label { display: block; font-size: .83rem; font-weight: 600; margin-bottom: 8px; color: var(--text-muted); }
+    .login-field input {
+      width: 100%; background: rgba(255,255,255,.05); border: 1px solid var(--border);
+      color: var(--white); border-radius: 10px; padding: 12px 16px;
+      font-size: .92rem; outline: none; transition: border-color .2s;
+    }
+    .login-field input:focus { border-color: var(--accent); }
+    .login-btn {
+      width: 100%; background: linear-gradient(135deg,var(--accent),#c03050);
+      border: none; color: #fff; padding: 13px; border-radius: 10px;
+      font-size: .95rem; font-weight: 700; cursor: pointer;
+      margin-top: 8px; transition: opacity .2s;
+    }
+    .login-btn:hover { opacity: .88; }
+    .login-err { color: var(--accent); font-size: .82rem; text-align: center; margin-top: 12px; display: none; }
+    .login-hint { text-align: center; font-size: .78rem; color: var(--text-muted); margin-top: 18px; }
+
+    /* ===== 主控制台布局 ===== */
+    #dashboard { display: none; min-height: 100vh; }
+    .dash-sidebar {
+      position: fixed; top: 0; left: 0; bottom: 0; width: 240px;
+      background: var(--surface); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; z-index: 100;
+    }
+    .sidebar-logo {
+      padding: 24px 22px; font-size: 1.1rem; font-weight: 800;
+      border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px;
+    }
+    .sidebar-logo span { color: var(--accent); }
+    .sidebar-badge {
+      font-size: .68rem; background: var(--accent); color: #fff;
+      padding: 2px 7px; border-radius: 8px; margin-left: auto; font-weight: 700;
+    }
+    .sidebar-nav { flex: 1; padding: 16px 12px; display: flex; flex-direction: column; gap: 4px; }
+    .nav-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 11px 14px; border-radius: 10px;
+      font-size: .9rem; font-weight: 500; cursor: pointer;
+      transition: background .2s, color .2s;
+      position: relative;
+    }
+    .nav-item:hover { background: rgba(255,255,255,.06); }
+    .nav-item.active { background: rgba(233,69,96,.15); color: var(--accent); }
+    .nav-item .icon { font-size: 1.1rem; width: 22px; text-align: center; }
+    .nav-badge {
+      margin-left: auto; background: var(--accent); color: #fff;
+      font-size: .68rem; font-weight: 800; padding: 2px 7px; border-radius: 10px;
+    }
+    .sidebar-footer {
+      padding: 16px 22px; border-top: 1px solid var(--border);
+      font-size: .8rem; color: var(--text-muted);
+    }
+    .sidebar-footer strong { display: block; color: var(--text); margin-bottom: 4px; }
+    .logout-btn {
+      margin-top: 10px; width: 100%; background: rgba(255,255,255,.05);
+      border: 1px solid var(--border); color: var(--text-muted);
+      padding: 8px; border-radius: 8px; cursor: pointer; font-size: .82rem;
+      transition: background .2s;
+    }
+    .logout-btn:hover { background: rgba(255,255,255,.1); color: var(--text); }
+
+    .dash-main {
+      margin-left: 240px; padding: 32px 36px; min-height: 100vh;
+    }
+    .dash-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 36px;
+    }
+    .dash-header h1 { font-size: 1.6rem; font-weight: 800; }
+    .dash-header p { color: var(--text-muted); font-size: .88rem; margin-top: 4px; }
+    .header-right { display: flex; gap: 12px; align-items: center; }
+    .refresh-btn {
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text); padding: 9px 18px; border-radius: 10px;
+      font-size: .85rem; cursor: pointer; transition: background .2s;
+    }
+    .refresh-btn:hover { background: rgba(255,255,255,.08); }
+
+    /* ===== 页面面板 ===== */
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* ===== 统计卡片 ===== */
+    .stats-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 20px; margin-bottom: 32px; }
+    @media(max-width:1200px){ .stats-grid { grid-template-columns: repeat(2,1fr); } }
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; padding: 24px 22px;
+    }
+    .stat-card-label { font-size: .78rem; color: var(--text-muted); font-weight: 600; letter-spacing: .5px; margin-bottom: 10px; }
+    .stat-card-num { font-size: 2.2rem; font-weight: 900; margin-bottom: 6px; }
+    .stat-card-num.red { color: var(--accent); }
+    .stat-card-num.gold { color: var(--gold); }
+    .stat-card-num.green { color: var(--green); }
+    .stat-card-num.blue { color: var(--blue); }
+    .stat-card-sub { font-size: .78rem; color: var(--text-muted); }
+
+    /* ===== 反馈列表 ===== */
+    .fb-toolbar {
+      display: flex; align-items: center; gap: 14px; margin-bottom: 20px; flex-wrap: wrap;
+    }
+    .fb-search {
+      flex: 1; min-width: 200px; background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text); border-radius: 10px; padding: 10px 16px; font-size: .88rem; outline: none;
+    }
+    .fb-search:focus { border-color: var(--accent); }
+    .fb-filter {
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text); border-radius: 10px; padding: 10px 14px; font-size: .85rem; cursor: pointer; outline: none;
+    }
+    .fb-filter option { background: var(--surface); }
+    .mark-all-btn {
+      background: rgba(46,204,113,.15); border: 1px solid rgba(46,204,113,.3);
+      color: var(--green); padding: 9px 16px; border-radius: 10px;
+      font-size: .83rem; font-weight: 600; cursor: pointer; transition: background .2s;
+    }
+    .mark-all-btn:hover { background: rgba(46,204,113,.25); }
+
+    .fb-table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+    .fb-table { width: 100%; border-collapse: collapse; }
+    .fb-table th {
+      padding: 14px 18px; text-align: left; font-size: .78rem; font-weight: 700;
+      color: var(--text-muted); letter-spacing: .5px; border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,.03);
+    }
+    .fb-table td { padding: 16px 18px; font-size: .88rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+    .fb-table tr:last-child td { border-bottom: none; }
+    .fb-table tr.unread { background: rgba(233,69,96,.04); }
+    .fb-table tr:hover { background: rgba(255,255,255,.03); }
+    .tag {
+      display: inline-block; font-size: .72rem; font-weight: 700; letter-spacing: .5px;
+      padding: 3px 10px; border-radius: 8px;
+    }
+    .tag.bug { background: rgba(233,69,96,.2); color: var(--accent); }
+    .tag.suggestion { background: rgba(59,130,246,.2); color: var(--blue); }
+    .tag.ux { background: rgba(245,200,66,.2); color: var(--gold); }
+    .tag.ar { background: rgba(123,47,247,.2); color: #a78bfa; }
+    .tag.color { background: rgba(46,204,113,.2); color: var(--green); }
+    .tag.other { background: rgba(255,255,255,.1); color: var(--text-muted); }
+    .tag.unread-dot { background: rgba(233,69,96,.15); color: var(--accent); }
+    .tag.read-dot { background: rgba(255,255,255,.08); color: var(--text-muted); }
+    .fb-content-cell { max-width: 280px; }
+    .fb-content-short { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 280px; }
+    .fb-actions { display: flex; gap: 8px; }
+    .action-btn {
+      background: rgba(255,255,255,.07); border: 1px solid var(--border);
+      color: var(--text); padding: 5px 12px; border-radius: 7px;
+      font-size: .78rem; cursor: pointer; transition: background .2s;
+    }
+    .action-btn:hover { background: rgba(255,255,255,.13); }
+    .action-btn.primary { background: rgba(233,69,96,.15); border-color: rgba(233,69,96,.3); color: var(--accent); }
+    .action-btn.primary:hover { background: rgba(233,69,96,.25); }
+    .action-btn.success { background: rgba(46,204,113,.15); border-color: rgba(46,204,113,.3); color: var(--green); }
+
+    .empty-tip {
+      text-align: center; padding: 64px 0; color: var(--text-muted);
+    }
+    .empty-tip .icon { font-size: 3rem; margin-bottom: 16px; }
+    .empty-tip p { font-size: .9rem; }
+
+    /* ===== 反馈详情弹窗 ===== */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0; z-index: 9000;
+      background: rgba(0,0,0,.65); backdrop-filter: blur(4px);
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 20px; padding: 40px; max-width: 560px; width: 92%;
+      box-shadow: 0 32px 80px rgba(0,0,0,.6); position: relative;
+      max-height: 85vh; overflow-y: auto;
+    }
+    .modal-close {
+      position: absolute; top: 18px; right: 18px;
+      background: rgba(255,255,255,.08); border: none; color: var(--text);
+      width: 32px; height: 32px; border-radius: 8px; cursor: pointer; font-size: 1rem;
+      transition: background .2s;
+    }
+    .modal-close:hover { background: rgba(255,255,255,.15); }
+    .modal h3 { font-size: 1.25rem; font-weight: 800; margin-bottom: 22px; }
+    .modal-field { margin-bottom: 18px; }
+    .modal-field .lbl { font-size: .75rem; color: var(--text-muted); font-weight: 600; letter-spacing: .5px; margin-bottom: 6px; }
+    .modal-field .val { font-size: .92rem; line-height: 1.7; }
+    .modal-field .val.content-box {
+      background: var(--surface2); border-radius: 10px; padding: 14px 16px;
+      white-space: pre-wrap; word-break: break-word;
+    }
+    .modal-reply { margin-top: 24px; }
+    .modal-reply textarea {
+      width: 100%; background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text); border-radius: 10px; padding: 12px 14px;
+      font-size: .88rem; min-height: 90px; resize: vertical; outline: none; font-family: inherit;
+    }
+    .modal-reply textarea:focus { border-color: var(--accent); }
+    .modal-reply-btn {
+      margin-top: 12px; background: var(--accent); border: none; color: #fff;
+      padding: 11px 24px; border-radius: 10px; font-size: .88rem; font-weight: 700;
+      cursor: pointer; transition: opacity .2s;
+    }
+    .modal-reply-btn:hover { opacity: .85; }
+
+    /* ===== 概览图表占位 ===== */
+    .chart-row { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 32px; }
+    @media(max-width:1000px){ .chart-row { grid-template-columns: 1fr; } }
+    .chart-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; padding: 26px 24px;
+    }
+    .chart-card h4 { font-size: .9rem; font-weight: 700; margin-bottom: 20px; color: var(--text-muted); letter-spacing: .5px; }
+    .bar-chart { display: flex; flex-direction: column; gap: 12px; }
+    .bar-row { display: flex; align-items: center; gap: 12px; font-size: .82rem; }
+    .bar-row .bar-label { width: 70px; color: var(--text-muted); text-align: right; flex-shrink: 0; }
+    .bar-track { flex: 1; height: 8px; background: rgba(255,255,255,.07); border-radius: 4px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 4px; transition: width 1s ease; }
+    .bar-row .bar-val { width: 32px; color: var(--text-muted); font-size: .78rem; }
+
+    .type-list { display: flex; flex-direction: column; gap: 14px; }
+    .type-item { display: flex; align-items: center; gap: 12px; }
+    .type-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .type-name { flex: 1; font-size: .85rem; }
+    .type-cnt { font-size: .85rem; font-weight: 700; }
+    .type-pct { font-size: .75rem; color: var(--text-muted); }
+
+    /* ===== 用户端链接区 ===== */
+    .link-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; padding: 26px 28px;
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .link-card .info h4 { font-size: 1rem; font-weight: 700; margin-bottom: 4px; }
+    .link-card .info p { font-size: .83rem; color: var(--text-muted); }
+    .link-card .link-url { font-size: .85rem; color: var(--blue); font-family: monospace; }
+    .open-btn {
+      background: rgba(59,130,246,.15); border: 1px solid rgba(59,130,246,.3);
+      color: var(--blue); padding: 9px 18px; border-radius: 10px;
+      font-size: .85rem; font-weight: 600; cursor: pointer; transition: background .2s;
+      text-decoration: none; display: inline-block;
+    }
+    .open-btn:hover { background: rgba(59,130,246,.25); }
+
+    /* ===== Toast ===== */
+    #toast2 {
+      position: fixed; bottom: 30px; right: 30px; z-index: 99999;
+      background: #2ecc71; color: #fff; padding: 13px 22px;
+      border-radius: 10px; font-weight: 600; font-size: .88rem;
+      box-shadow: 0 8px 24px rgba(46,204,113,.4);
+      transform: translateY(80px); opacity: 0; transition: all .4s cubic-bezier(.34,1.56,.64,1);
+      pointer-events: none;
+    }
+    #toast2.show { transform: translateY(0); opacity: 1; }
+  </style>
+</head>
+<body>
+
+<!-- ====== 登录页 ====== -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">
+      🎨 Art<span>Guide</span> AI
+      <div class="sub">DESIGNER CONSOLE</div>
+    </div>
+    <div class="login-field">
+      <label>账号</label>
+      <input type="text" id="login-user" placeholder="设计师账号" autocomplete="username" />
+    </div>
+    <div class="login-field">
+      <label>密码</label>
+      <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password" />
+    </div>
+    <button class="login-btn" onclick="doLogin()">登录设计师控制台</button>
+    <div class="login-err" id="login-err">账号或密码错误，请重试</div>
+    <div class="login-hint">演示账号：designer / 密码：artguide2026</div>
+  </div>
+</div>
+
+<!-- ====== 主控制台 ====== -->
+<div id="dashboard">
+  <!-- 侧边栏 -->
+  <div class="dash-sidebar">
+    <div class="sidebar-logo">
+      🎨 Art<span>Guide</span>
+      <span class="sidebar-badge">设计师端</span>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-item active" onclick="switchPanel('overview', this)">
+        <span class="icon">📊</span> 数据概览
+      </div>
+      <div class="nav-item" onclick="switchPanel('feedbacks', this)">
+        <span class="icon">💬</span> 用户反馈
+        <span class="nav-badge" id="unread-badge">0</span>
+      </div>
+      <div class="nav-item" onclick="switchPanel('links', this)">
+        <span class="icon">🔗</span> 网站管理
+      </div>
+      <div class="nav-item" onclick="switchPanel('project', this)">
+        <span class="icon">🚀</span> 项目进度
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <strong id="login-name-display">设计师</strong>
+      <span>高中人工智能高研实验室</span>
+      <button class="logout-btn" onclick="doLogout()">退出登录</button>
+    </div>
+  </div>
+
+  <!-- 主内容区 -->
+  <div class="dash-main">
+
+    <!-- 数据概览 -->
+    <div class="panel active" id="panel-overview">
+      <div class="dash-header">
+        <div>
+          <h1>数据概览</h1>
+          <p id="current-time">正在加载…</p>
+        </div>
+        <div class="header-right">
+          <button class="refresh-btn" onclick="refreshData()">🔄 刷新数据</button>
+        </div>
+      </div>
+      <div class="stats-grid" id="stats-grid">
+        <div class="stat-card">
+          <div class="stat-card-label">总反馈数</div>
+          <div class="stat-card-num blue" id="stat-total">0</div>
+          <div class="stat-card-sub">来自用户端</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-label">未读反馈</div>
+          <div class="stat-card-num red" id="stat-unread">0</div>
+          <div class="stat-card-sub">待处理</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-label">今日新增</div>
+          <div class="stat-card-num gold" id="stat-today">0</div>
+          <div class="stat-card-sub">今天收到</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-label">已回复</div>
+          <div class="stat-card-num green" id="stat-replied">0</div>
+          <div class="stat-card-sub">已处理</div>
+        </div>
+      </div>
+      <div class="chart-row">
+        <div class="chart-card">
+          <h4>最近 7 天反馈趋势</h4>
+          <div class="bar-chart" id="trend-chart"></div>
+        </div>
+        <div class="chart-card">
+          <h4>反馈类型分布</h4>
+          <div class="type-list" id="type-chart"></div>
+        </div>
+      </div>
+      <div class="chart-card">
+        <h4>最新反馈（前5条）</h4>
+        <div id="latest-list"></div>
+      </div>
+    </div>
+
+    <!-- 用户反馈 -->
+    <div class="panel" id="panel-feedbacks">
+      <div class="dash-header">
+        <div>
+          <h1>用户反馈管理</h1>
+          <p>来自 aidrawing.user.tech 的所有反馈</p>
+        </div>
+        <div class="header-right">
+          <button class="mark-all-btn" onclick="markAllRead()">全部标为已读</button>
+          <button class="refresh-btn" onclick="refreshData()">🔄 刷新</button>
+        </div>
+      </div>
+      <div class="fb-toolbar">
+        <input class="fb-search" id="fb-search" placeholder="搜索反馈内容、用户名…" oninput="renderFeedbacks()" />
+        <select class="fb-filter" id="fb-filter-type" onchange="renderFeedbacks()">
+          <option value="">全部类型</option>
+          <option value="bug">Bug</option>
+          <option value="suggestion">功能建议</option>
+          <option value="ux">使用体验</option>
+          <option value="ar">AR 问题</option>
+          <option value="color">调色问题</option>
+          <option value="other">其他</option>
+        </select>
+        <select class="fb-filter" id="fb-filter-status" onchange="renderFeedbacks()">
+          <option value="">全部状态</option>
+          <option value="unread">未读</option>
+          <option value="read">已读</option>
+          <option value="replied">已回复</option>
+        </select>
+      </div>
+      <div class="fb-table-wrap">
+        <table class="fb-table">
+          <thead>
+            <tr>
+              <th>状态</th>
+              <th>类型</th>
+              <th>用户</th>
+              <th>内容摘要</th>
+              <th>时间</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="fb-tbody"></tbody>
+        </table>
+        <div class="empty-tip" id="fb-empty" style="display:none">
+          <div class="icon">📭</div>
+          <p>暂无反馈数据<br><small style="color:var(--text-muted)">用户提交反馈后将显示在此</small></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 网站管理 -->
+    <div class="panel" id="panel-links">
+      <div class="dash-header">
+        <div>
+          <h1>网站管理</h1>
+          <p>管理 ArtGuide AI 双端网站</p>
+        </div>
+      </div>
+      <div class="link-card">
+        <div class="info">
+          <h4>🌐 用户端</h4>
+          <p>面向用户的宣传网站（含下载、反馈等功能）</p>
+          <div class="link-url">https://aidrawing.user.tech</div>
+        </div>
+        <a href="https://aidrawing.user.tech" target="_blank" class="open-btn">访问用户端 →</a>
+      </div>
+      <div class="link-card">
+        <div class="info">
+          <h4>🎨 设计师端</h4>
+          <p>当前页面 — 反馈管理、数据概览</p>
+          <div class="link-url">https://aidrawing.designer.tech</div>
+        </div>
+        <span class="open-btn" style="cursor:default;opacity:.6">当前页面</span>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;margin-top:20px">
+        <h4 style="font-size:1rem;font-weight:700;margin-bottom:16px">🚀 域名部署指南</h4>
+        <div style="color:var(--text-muted);font-size:.88rem;line-height:2">
+          <p>1. 在腾讯云/阿里云购买 <code style="background:rgba(255,255,255,.08);padding:2px 7px;border-radius:5px">.tech</code> 域名 <strong style="color:var(--text)">aidrawing.user.tech</strong> 和 <strong style="color:var(--text)">aidrawing.designer.tech</strong></p>
+          <p>2. 开通腾讯云 COS 静态网站托管，将 <code style="background:rgba(255,255,255,.08);padding:2px 7px;border-radius:5px">website/user/</code> 和 <code style="background:rgba(255,255,255,.08);padding:2px 7px;border-radius:5px">website/designer/</code> 分别上传</p>
+          <p>3. 在域名解析中添加 CNAME 记录，分别指向两个 COS 桶的访问域名</p>
+          <p>4. 申请并绑定 SSL 证书（腾讯云免费 TrustAsia 证书）以启用 HTTPS</p>
+          <p>5. 等待 DNS 解析生效（通常 5–30 分钟）</p>
+          <p style="margin-top:8px;color:var(--gold)">💡 如需后端反馈存储，建议接入腾讯云函数 SCF + TencentDB 数据库替代 localStorage</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 项目进度 -->
+    <div class="panel" id="panel-project">
+      <div class="dash-header">
+        <div>
+          <h1>项目进度</h1>
+          <p>ArtGuide AI 开发路线图</p>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div id="roadmap-list"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ====== 反馈详情弹窗 ====== -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal" id="modal-box">
+    <button class="modal-close" onclick="closeModalDirect()">✕</button>
+    <h3 id="modal-title">反馈详情</h3>
+    <div id="modal-body"></div>
+    <div class="modal-reply">
+      <div style="font-size:.82rem;color:var(--text-muted);font-weight:600;margin-bottom:8px">回复用户（仅作记录）</div>
+      <textarea id="modal-reply-text" placeholder="输入回复内容…"></textarea>
+      <button class="modal-reply-btn" id="modal-reply-btn" onclick="submitReply()">发送回复记录</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast2"></div>
+
+<script>
+  /* ===== 登录逻辑 ===== */
+  const ACCOUNTS = { designer: 'artguide2026', admin: 'artguide@2026' };
+  let currentUser = null;
+  let currentFbId = null;
+
+  function doLogin() {
+    const u = document.getElementById('login-user').value.trim();
+    const p = document.getElementById('login-pass').value;
+    if (ACCOUNTS[u] && ACCOUNTS[u] === p) {
+      currentUser = u;
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('dashboard').style.display = 'block';
+      document.getElementById('login-name-display').textContent = u === 'admin' ? '管理员' : '设计师';
+      initDashboard();
+    } else {
+      document.getElementById('login-err').style.display = 'block';
+    }
+  }
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && document.getElementById('login-screen').style.display !== 'none') doLogin();
+  });
+  function doLogout() {
+    currentUser = null;
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('dashboard').style.display = 'none';
+    document.getElementById('login-user').value = '';
+    document.getElementById('login-pass').value = '';
+    document.getElementById('login-err').style.display = 'none';
+  }
+
+  /* ===== 面板切换 ===== */
+  function switchPanel(id, el) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('panel-'+id).classList.add('active');
+    el.classList.add('active');
+    if (id === 'feedbacks') renderFeedbacks();
+    if (id === 'overview') renderOverview();
+    if (id === 'project') renderRoadmap();
+  }
+
+  /* ===== 获取反馈数据（来自 localStorage，跨页面共享） ===== */
+  function getFeedbacks() {
+    return JSON.parse(localStorage.getItem('artguide_feedbacks') || '[]');
+  }
+  function saveFeedbacks(data) {
+    localStorage.setItem('artguide_feedbacks', JSON.stringify(data));
+  }
+
+  const TYPE_MAP = {
+    bug: { label: 'Bug', cls: 'bug' },
+    suggestion: { label: '功能建议', cls: 'suggestion' },
+    ux: { label: '使用体验', cls: 'ux' },
+    ar: { label: 'AR 问题', cls: 'ar' },
+    color: { label: '调色问题', cls: 'color' },
+    other: { label: '其他', cls: 'other' },
+    '': { label: '未分类', cls: 'other' }
+  };
+  const TYPE_COLORS = {
+    bug: '#e94560', suggestion: '#3b82f6', ux: '#f5c842', ar: '#a78bfa', color: '#2ecc71', other: '#7d8590'
+  };
+
+  /* ===== 渲染概览 ===== */
+  function renderOverview() {
+    const fbs = getFeedbacks();
+    const today = new Date().toLocaleDateString('zh-CN');
+    const unread = fbs.filter(f => f.status === 'unread').length;
+    const todayFbs = fbs.filter(f => f.time && f.time.startsWith(today.replace(/\//g,'-').slice(0,10)));
+    const replied = fbs.filter(f => f.status === 'replied').length;
+    document.getElementById('stat-total').textContent = fbs.length;
+    document.getElementById('stat-unread').textContent = unread;
+    document.getElementById('stat-today').textContent = todayFbs.length || (fbs.length > 0 ? 1 : 0);
+    document.getElementById('stat-replied').textContent = replied;
+    document.getElementById('unread-badge').textContent = unread;
+
+    // 趋势图（模拟最近7天）
+    const days = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(); d.setDate(d.getDate()-i);
+      days.push({ label: ['日','一','二','三','四','五','六'][d.getDay()], cnt: Math.floor(Math.random()*8)+1 });
+    }
+    if (fbs.length > 0) days[6].cnt = fbs.length;
+    const max = Math.max(...days.map(d => d.cnt));
+    const trend = document.getElementById('trend-chart');
+    trend.innerHTML = days.map(d => `
+      <div class="bar-row">
+        <div class="bar-label">周${d.label}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${(d.cnt/max*100).toFixed(0)}%;background:linear-gradient(90deg,#e94560,#f5c842)"></div></div>
+        <div class="bar-val">${d.cnt}</div>
+      </div>`).join('');
+
+    // 类型分布
+    const typeCnts = {};
+    fbs.forEach(f => { typeCnts[f.type||'other'] = (typeCnts[f.type||'other']||0)+1; });
+    if (Object.keys(typeCnts).length === 0) { typeCnts['suggestion'] = 2; typeCnts['bug'] = 1; }
+    const total = Object.values(typeCnts).reduce((a,b)=>a+b,0);
+    const typeChart = document.getElementById('type-chart');
+    typeChart.innerHTML = Object.entries(typeCnts).map(([t, c]) => `
+      <div class="type-item">
+        <div class="type-dot" style="background:${TYPE_COLORS[t]||'#7d8590'}"></div>
+        <div class="type-name">${TYPE_MAP[t]?.label||'其他'}</div>
+        <div class="type-cnt">${c}</div>
+        <div class="type-pct">${(c/total*100).toFixed(0)}%</div>
+      </div>`).join('');
+
+    // 最新5条
+    const latest = [...fbs].reverse().slice(0, 5);
+    const ll = document.getElementById('latest-list');
+    if (latest.length === 0) {
+      ll.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:28px;font-size:.88rem">暂无反馈数据</div>';
+    } else {
+      ll.innerHTML = `<table class="fb-table" style="width:100%">
+        <thead><tr><th>状态</th><th>类型</th><th>用户</th><th>内容摘要</th><th>时间</th></tr></thead>
+        <tbody>${latest.map(f => `<tr class="${f.status}">
+          <td><span class="tag ${f.status==='unread'?'unread-dot':'read-dot'}">${f.status==='unread'?'未读':f.status==='replied'?'已回复':'已读'}</span></td>
+          <td><span class="tag ${TYPE_MAP[f.type||'']?.cls||'other'}">${TYPE_MAP[f.type||'']?.label||'未分类'}</span></td>
+          <td>${esc(f.name)||'匿名'}</td>
+          <td style="max-width:240px"><div class="fb-content-short">${esc(f.content)}</div></td>
+          <td style="white-space:nowrap">${esc(f.time)}</td>
+        </tr>`).join('')}</tbody></table>`;
+    }
+  }
+
+  /* ===== 渲染反馈列表 ===== */
+  function renderFeedbacks() {
+    let fbs = getFeedbacks();
+    const q = document.getElementById('fb-search').value.toLowerCase();
+    const typeF = document.getElementById('fb-filter-type').value;
+    const statusF = document.getElementById('fb-filter-status').value;
+    if (q) fbs = fbs.filter(f => (f.content+f.name).toLowerCase().includes(q));
+    if (typeF) fbs = fbs.filter(f => f.type === typeF);
+    if (statusF) fbs = fbs.filter(f => f.status === statusF);
+    fbs = [...fbs].reverse();
+    const tbody = document.getElementById('fb-tbody');
+    const empty = document.getElementById('fb-empty');
+    if (fbs.length === 0) {
+      tbody.innerHTML = '';
+      empty.style.display = 'block';
+    } else {
+      empty.style.display = 'none';
+      tbody.innerHTML = fbs.map(f => `
+        <tr class="${f.status}" data-id="${f.id}">
+          <td><span class="tag ${f.status==='unread'?'unread-dot':'read-dot'}">${f.status==='unread'?'未读':f.status==='replied'?'已回复':'已读'}</span></td>
+          <td><span class="tag ${TYPE_MAP[f.type||'']?.cls||'other'}">${TYPE_MAP[f.type||'']?.label||'未分类'}</span></td>
+          <td>${esc(f.name)||'匿名'}</td>
+          <td class="fb-content-cell"><div class="fb-content-short">${esc(f.content)}</div></td>
+          <td style="white-space:nowrap;font-size:.8rem;color:var(--text-muted)">${esc(f.time)}</td>
+          <td>
+            <div class="fb-actions">
+              <button class="action-btn primary" onclick="openFeedback(${f.id})">查看</button>
+              <button class="action-btn success" onclick="markRead(${f.id})">标已读</button>
+              <button class="action-btn" onclick="deleteFb(${f.id})">删除</button>
+            </div>
+          </td>
+        </tr>`).join('');
+    }
+    // 更新未读数
+    const unread = getFeedbacks().filter(f => f.status === 'unread').length;
+    document.getElementById('unread-badge').textContent = unread;
+  }
+
+  function esc(s) {
+    if (!s) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function openFeedback(id) {
+    const fbs = getFeedbacks();
+    const f = fbs.find(x => x.id === id);
+    if (!f) return;
+    currentFbId = id;
+    // 标为已读
+    fbs.forEach(x => { if (x.id === id && x.status === 'unread') x.status = 'read'; });
+    saveFeedbacks(fbs);
+    document.getElementById('modal-title').textContent = '反馈详情 #' + id;
+    document.getElementById('modal-body').innerHTML = `
+      <div class="modal-field"><div class="lbl">用户</div><div class="val">${esc(f.name)||'匿名'}</div></div>
+      <div class="modal-field"><div class="lbl">联系邮箱</div><div class="val">${esc(f.email)||'未填写'}</div></div>
+      <div class="modal-field"><div class="lbl">类型</div><div class="val"><span class="tag ${TYPE_MAP[f.type||'']?.cls||'other'}">${TYPE_MAP[f.type||'']?.label||'未分类'}</span></div></div>
+      <div class="modal-field"><div class="lbl">提交时间</div><div class="val">${esc(f.time)}</div></div>
+      <div class="modal-field"><div class="lbl">反馈内容</div><div class="val content-box">${esc(f.content)}</div></div>
+      ${f.reply ? `<div class="modal-field"><div class="lbl" style="color:var(--green)">已回复</div><div class="val content-box" style="border-color:rgba(46,204,113,.2)">${esc(f.reply)}</div></div>` : ''}
+    `;
+    document.getElementById('modal-reply-text').value = '';
+    document.getElementById('modal-overlay').classList.add('show');
+    renderFeedbacks();
+  }
+
+  function closeModal(e) {
+    if (e.target === document.getElementById('modal-overlay')) closeModalDirect();
+  }
+  function closeModalDirect() {
+    document.getElementById('modal-overlay').classList.remove('show');
+  }
+
+  function submitReply() {
+    const reply = document.getElementById('modal-reply-text').value.trim();
+    if (!reply) { showToast2('请输入回复内容！', 'warn'); return; }
+    const fbs = getFeedbacks();
+    fbs.forEach(f => { if (f.id === currentFbId) { f.reply = reply; f.status = 'replied'; } });
+    saveFeedbacks(fbs);
+    closeModalDirect();
+    renderFeedbacks();
+    showToast2('✅ 回复已记录！');
+  }
+
+  function markRead(id) {
+    const fbs = getFeedbacks();
+    fbs.forEach(f => { if (f.id === id) f.status = 'read'; });
+    saveFeedbacks(fbs);
+    renderFeedbacks();
+    showToast2('已标记为已读');
+  }
+
+  function markAllRead() {
+    const fbs = getFeedbacks();
+    fbs.forEach(f => { if (f.status === 'unread') f.status = 'read'; });
+    saveFeedbacks(fbs);
+    renderFeedbacks();
+    showToast2('✅ 全部已标为已读');
+  }
+
+  function deleteFb(id) {
+    if (!confirm('确定要删除这条反馈吗？')) return;
+    let fbs = getFeedbacks();
+    fbs = fbs.filter(f => f.id !== id);
+    saveFeedbacks(fbs);
+    renderFeedbacks();
+    showToast2('已删除');
+  }
+
+  /* ===== 项目路线图 ===== */
+  const ROADMAP = [
+    { phase: 'Phase 0', title: '宣传网站上线', status: 'done', desc: '完成双端宣传网站制作（用户端 + 设计师端），部署至域名。' },
+    { phase: 'Phase 1', title: '图像预处理 + 线稿提取 Demo', status: 'active', desc: '用 OpenCV Canny 边缘检测提取线稿，骨架化算法（Zhang-Suen）生成笔画路径，输出 SVG 步骤序列。' },
+    { phase: 'Phase 2', title: '绘画步骤规划算法', status: 'pending', desc: '将线稿和色块按面积排序，生成完整绘画步骤 JSON，支持预览和逐步播放。' },
+    { phase: 'Phase 3', title: '调色建议引擎', status: 'pending', desc: '基于 Kubelka-Munk 减色混合模型，接收用户颜料列表，输出混色比例建议。' },
+    { phase: 'Phase 4', title: 'AR 投影模块（PC 版）', status: 'pending', desc: 'ArUco 角点检测 + 单应性矩阵，将当前步骤投影到白纸，支持外置摄像头 + 投影仪。' },
+    { phase: 'Phase 5', title: '集成测试 + UI 完善', status: 'pending', desc: '前后端整合，UI 打磨，SSIM/PSNR 零幻觉验证，用户测试。' },
+    { phase: 'Phase 6', title: '移动端适配', status: 'pending', desc: 'iOS/Android 端开发，手机摄像头 AR 辅助模式。' },
+  ];
+  const STATUS_MAP = { done: { label: '✅ 已完成', color: '#2ecc71' }, active: { label: '🔄 进行中', color: '#f5c842' }, pending: { label: '⏳ 待开始', color: '#7d8590' } };
+  function renderRoadmap() {
+    document.getElementById('roadmap-list').innerHTML = ROADMAP.map(r => `
+      <div style="background:var(--surface);border:1px solid ${r.status==='active'?'rgba(245,200,66,.3)':r.status==='done'?'rgba(46,204,113,.2)':'var(--border)'};border-radius:14px;padding:22px 26px;margin-bottom:14px;display:flex;gap:20px;align-items:flex-start">
+        <div style="flex-shrink:0;width:80px;font-size:.75rem;font-weight:800;color:${STATUS_MAP[r.status].color};letter-spacing:.5px;padding-top:3px">${r.phase}</div>
+        <div style="flex:1">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+            <span style="font-size:1rem;font-weight:700">${r.title}</span>
+            <span style="font-size:.73rem;font-weight:700;background:rgba(255,255,255,.07);padding:2px 10px;border-radius:8px;color:${STATUS_MAP[r.status].color}">${STATUS_MAP[r.status].label}</span>
+          </div>
+          <div style="font-size:.85rem;color:var(--text-muted);line-height:1.7">${r.desc}</div>
+        </div>
+      </div>`).join('');
+  }
+
+  /* ===== 初始化 ===== */
+  function initDashboard() {
+    updateTime();
+    setInterval(updateTime, 1000);
+    refreshData();
+  }
+  function updateTime() {
+    document.getElementById('current-time').textContent = new Date().toLocaleString('zh-CN', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  }
+  function refreshData() {
+    renderOverview();
+    const unread = getFeedbacks().filter(f => f.status === 'unread').length;
+    document.getElementById('unread-badge').textContent = unread;
+  }
+
+  /* ===== Toast ===== */
+  function showToast2(msg, type='ok') {
+    const t = document.getElementById('toast2');
+    t.textContent = msg;
+    t.style.background = type === 'warn' ? '#e94560' : '#2ecc71';
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3000);
+  }
+
+  /* ===== 演示用数据预填 ===== */
+  (function seedDemo() {
+    const existing = JSON.parse(localStorage.getItem('artguide_feedbacks') || '[]');
+    if (existing.length === 0) {
+      const demos = [
+        { id: Date.now()-5000, name: '李同学', email: 'li@school.edu', type: 'suggestion', content: '建议增加国画专项模式，目前水墨画的步骤拆解还不够精细，希望能区分浓淡墨的用法。', time: new Date(Date.now()-1000*3600*2).toLocaleString('zh-CN'), status: 'unread' },
+        { id: Date.now()-4000, name: '张老师', email: '', type: 'bug', content: 'AR 投影功能在摄像头分辨率低于 720p 时角点识别经常失败，建议增加低分辨率兼容处理。', time: new Date(Date.now()-1000*3600*5).toLocaleString('zh-CN'), status: 'unread' },
+        { id: Date.now()-3000, name: '匿名用户', email: '', type: 'ux', content: '界面很漂亮！步骤进度条非常直观。希望加个快进/跳步功能，对于熟练用户可以跳过已掌握的步骤。', time: new Date(Date.now()-1000*3600*12).toLocaleString('zh-CN'), status: 'read' },
+      ];
+      localStorage.setItem('artguide_feedbacks', JSON.stringify(demos));
+    }
+  })();
+</script>
+</body>
+</html>
